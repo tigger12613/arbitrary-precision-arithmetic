@@ -70,12 +70,17 @@ static void bn_dec(struct bn *n) {
     }
 }
 
-static void bn_add(struct bn *a, struct bn *b, struct bn *c) {
+static int bn_add(struct bn *a, struct bn *b, struct bn *c) {
     int carry = 0;
     for (int i = 0; i < BN_ARRAY_SIZE; ++i) {
         UTYPE_TMP tmp = (UTYPE_TMP)a->array[i] + b->array[i] + carry;
         carry = (tmp > MAX_VAL);
         c->array[i] = (tmp & MAX_VAL);
+    }
+    if (carry == 1) {
+        return 0;
+    } else {
+        return 1;
     }
 }
 
@@ -138,7 +143,7 @@ static void factorial(struct bn *n, struct bn *res) {
     bn_assign(res, &tmp);
 }
 static bn_t *bn_tmp_copy(bn_t *n) {
-    bn_t *tmp = calloc(1,sizeof(bn_t));
+    bn_t *tmp = calloc(1, sizeof(bn_t));
     for (int i = 0; i < BN_ARRAY_SIZE; ++i)
         tmp->array[i] = n->array[i];
     return tmp;
@@ -150,7 +155,7 @@ static bn_t *bn_tmp_copy(bn_t *n) {
             : "0"(n0), "1"(n1), "g"(d))
 
 #define BN_NORMALIZE(u, usize)         \
-    while ((usize) && !(u)[(usize) -1]) \
+    while ((usize) && !(u)[(usize)-1]) \
         --(usize);
 
 /* Set u[size] = u[usize] / v, and return the remainder. */
@@ -206,9 +211,8 @@ static char *bn_get_str(bn_t *n, char *out) {
     const uint32_t max_radix = 0x3B9ACA00U;
     const unsigned int max_power = 9;
 
-
     if (!out)
-        out = calloc(256,(sizeof(char)));
+        out = calloc(256, (sizeof(char)));
 
     char *outp = out;
     bn_t *tmp = bn_tmp_copy(n);
@@ -217,7 +221,7 @@ static char *bn_get_str(bn_t *n, char *out) {
     uint32_t *tmp_u = tmp->array;
     for (int i = 32; i >= 0; i--) {
         if (tmp->array[i] != 0) {
-            size = i+1;
+            size = i + 1;
             break;
         }
     }
@@ -230,7 +234,6 @@ static char *bn_get_str(bn_t *n, char *out) {
         out[1] = '\0';
         return out;
     }
-
 
     uint32_t tsize = size;
     do {
@@ -277,17 +280,16 @@ int main(int argc, char *argv[]) {
     unsigned int n = strtoul(argv[1], NULL, 10);
     if (!n)
         return -2;
-    for (int i = 1; i <= n; i++)
-    {
+    for (int i = 1; i <= n; i++) {
         bn_from_int(&num, i);
         factorial(&num, &result);
         bn_to_str(&result, buf, sizeof(buf));
         // printf("factorial(%d) = %s\n", i, buf);
         uint32_t string_size = 512;
-        char *str = calloc(1,string_size);
+        char *str = calloc(1, string_size);
         char *a = bn_get_str(&result, str);
         printf("fac(%d) = %s\n", i, a);
     }
-    
+
     return 0;
 }
