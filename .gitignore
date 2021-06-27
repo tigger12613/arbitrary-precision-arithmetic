@@ -1,0 +1,7 @@
+q6
+*.o
+*.o.d
+*.dSYM
+.vscode
+.devcontainer
+core*
