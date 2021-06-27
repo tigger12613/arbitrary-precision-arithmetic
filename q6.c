@@ -35,6 +35,13 @@ static inline void bn_from_int(struct bn *n, UTYPE_TMP i) {
     n->array[1] = tmp;
 }
 
+static bool bn_is_zero(struct bn *n) {
+    for (int i = 0; i < BN_ARRAY_SIZE; ++i)
+        if (n->array[i])
+            return false;
+    return true;
+}
+
 static void bn_to_str(struct bn *n, char *str, int nbytes) {
     /* index into array - reading "MSB" first -> big-endian */
     int j = BN_ARRAY_SIZE - 1;
@@ -60,7 +67,10 @@ static void bn_to_str(struct bn *n, char *str, int nbytes) {
 }
 
 /* Decrement: subtract 1 from n */
-static void bn_dec(struct bn *n) {
+static int bn_dec(struct bn *n) {
+    if (bn_is_zero) {
+        return 0;
+    }
     for (int i = 0; i < BN_ARRAY_SIZE; ++i) {
         UTYPE tmp = n->array[i];
         UTYPE res = tmp - 1;
@@ -68,6 +78,7 @@ static void bn_dec(struct bn *n) {
 
         if (!(res > tmp)) break;
     }
+    return 1;
 }
 
 static int bn_add(struct bn *a, struct bn *b, struct bn *c) {
@@ -114,12 +125,6 @@ static void bn_mul(struct bn *a, struct bn *b, struct bn *c) {
     }
 }
 
-static bool bn_is_zero(struct bn *n) {
-    for (int i = 0; i < BN_ARRAY_SIZE; ++i)
-        if (n->array[i])
-            return false;
-    return true;
-}
 
 /* Copy src into dst. i.e. dst := src */
 static void bn_assign(struct bn *dst, struct bn *src) {
