@@ -256,7 +256,7 @@ static char *bn_get_str(bn_t *n, char *out) {
         /* Loop until TMP = 0. */
     } while (tsize != 0);
     free(tmp);
-    printf("%s\n", out);
+    // printf("%s\n", out);
     char *f = outp - 1;
     /* Eliminate leading (trailing) zeroes */
     while (*f == '0')
