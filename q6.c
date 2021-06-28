@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 /* how large the underlying array size should be */
 #define UNIT_SIZE 4
@@ -284,30 +285,45 @@ static int bn_size(bn_t *a) {
     }
     return 0;
 }
+
+void bn_print(bn_t *a){
+    uint32_t string_size = 512;
+    char *str = calloc(1, string_size);
+    char *str1 = bn_get_str(a, str);
+    printf("%s\n", str1);
+    free(str1);
+}
+void bn_printhex(bn_t *a){
+    char buf[8192];
+    bn_to_str(a, buf, sizeof(buf));
+    printf("%s\n", buf);
+}
+
 // a = b concat c
-static void bn_split_shift(bn_t *a, bn_t *b, bn_t *c, const int shift) {
+static void bn_split_shift(bn_t *a, bn_t *b, bn_t *c, const int offset) {
     bn_init(b);
     bn_init(c);
-    for (int i = 0; i < shift; i++) {
+    for (int i = 0; i < offset; i++) {
         c->array[i] = a->array[i];
     }
-    for (int i = 0; i < BN_ARRAY_SIZE - shift; i++) {
-        b->array[i] = a->array[i + shift];
+    for (int i = 0; i < BN_ARRAY_SIZE - offset; i++) {
+        b->array[i] = a->array[i + offset];
     }
 }
 // c = a - b
 static int bn_sub(bn_t *a, bn_t *b, bn_t *c) {
-    int carry = 0;
+    //printf("sub\n");
+    UTYPE_TMP carry = 0;
     for (int i = 0; i < BN_ARRAY_SIZE; i++) {
         if (a->array[i] == 0 && carry == 1) {
-            c->array[i] = MAX_VAL - b->array[i];
+            c->array[i] = MAX_VAL - (UTYPE_TMP)b->array[i] + 1;
             carry = 1;
         } else {
             if (a->array[i] - carry < b->array[i]) {
-                c->array[i] = MAX_VAL - b->array[i] + a->array[i] - carry;
+                c->array[i] = (MAX_VAL - (UTYPE_TMP)b->array[i])+ 1 + (UTYPE_TMP)a->array[i] - carry;
                 carry = 1;
             } else {
-                c->array[i] = a->array[i] - carry - b->array[i];
+                c->array[i] = (UTYPE_TMP)a->array[i] - carry - (UTYPE_TMP)b->array[i];
                 carry = 0;
             }
         }
@@ -329,7 +345,8 @@ void bn_left_shift(bn_t *a, int offset) {
 static void karatsuba_mul(bn_t *a, bn_t *b, bn_t *c) {
     int m1 = bn_size(a);
     int m2 = bn_size(b);
-    if (m1 == 1 || m2 == 1) {
+    // printf("m1=%d,m2=%d\n",m1,m2);
+    if (m1 <= 1 || m2 <= 1) {
         bn_mul(a, b, c);
         return;
     }
@@ -350,19 +367,41 @@ static void karatsuba_mul(bn_t *a, bn_t *b, bn_t *c) {
     bn_init(&tmp2);
 
     bn_split_shift(a, &high1, &low1, mm);
+    // bn_printhex(a);
+    // bn_printhex(&high1);
+    // bn_printhex(&low1);
+
     bn_split_shift(b, &high2, &low2, mm);
+    // printf("b\n");
+    // bn_printhex(b);
+    // bn_printhex(&high2);
+    // bn_printhex(&low2);
+
+    //printf("shift\n");
     karatsuba_mul(&low1, &low2, &z0);
+    // printf("z0=");
+    // bn_printhex(&z0);
     bn_add(&low1, &high1, &tmp1);
     bn_add(&low2, &high2, &tmp2);
     karatsuba_mul(&tmp1, &tmp2, &z1);
+    // printf("z1=");
+    // bn_printhex(&z1);
     karatsuba_mul(&high1, &high2, &z2);
-
+    // printf("z2=");
+    // bn_printhex(&z2);
+    
+    //printf("sub\n");
     bn_sub(&z1, &z2, &tmp1);
+    // printf("tmp1=");
+    // bn_printhex(&tmp1);
     bn_sub(&tmp1, &z0, &tmp1);
-    bn_left_shift(&tmp1, 2 * mm);
-    bn_left_shift(&z2, 2 * mm);
-    bn_add(&tmp1, &z2, &tmp1);
-    bn_add(&tmp1, &z0, c);
+    // printf("tmp1=");
+    // bn_printhex(&tmp1);
+
+    bn_left_shift(&tmp1, mm);
+    bn_left_shift(&z2, 2*mm);
+    bn_add(&tmp1, &z2, &tmp2);
+    bn_add(&tmp2, &z0, c);
 
     return;
 }
@@ -384,24 +423,29 @@ static void factorial2(struct bn *n, struct bn *res) {
     }
     bn_assign(res, &tmp);
 }
-
-int main(int argc, char *argv[]) {
-    struct bn num, result;
-    char buf[8192];
-
-    unsigned int n = strtoul(argv[1], NULL, 10);
-    if (!n)
-        return -2;
-    for (int i = 1; i <= n; i++) {
-        bn_from_int(&num, i);
-        factorial2(&num, &result);
-        bn_to_str(&result, buf, sizeof(buf));
-        // printf("factorial(%d) = %s\n", i, buf);
-        uint32_t string_size = 512;
-        char *str = calloc(1, string_size);
-        char *a = bn_get_str(&result, str);
-        printf("fac(%d) = %s\n", i, a);
-    }
-
-    return 0;
+static char* bn_str(bn_t *a){
+    uint32_t string_size = 512;
+    char *str = calloc(1, string_size);
+    return bn_get_str(a, str);
 }
+
+// int main(int argc, char *argv[]) {
+//     struct bn num, result;
+//     char buf[8192];
+
+//     unsigned int n = strtoul(argv[1], NULL, 10);
+//     if (!n)
+//         return -2;
+//     for (int i = 1; i <= n; i++) {
+//         bn_from_int(&num, i);
+//         factorial2(&num, &result);
+//         bn_to_str(&result, buf, sizeof(buf));
+//         // printf("factorial(%d) = %s\n", i, buf);
+//         uint32_t string_size = 512;
+//         char *str = calloc(1, string_size);     
+//         char *a = bn_get_str(&result, str);
+//         printf("fac(%d) = %s\n", i, a);
+//     }
+
+//     return 0;
+// }
