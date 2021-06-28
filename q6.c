@@ -278,7 +278,6 @@ static char *bn_get_str(bn_t *n, char *out) {
 }
 static int bn_size(bn_t *a) {
     for (int i = (int)(BN_ARRAY_SIZE - 1); i >= 0; i--) {
-        //printf("%d\n",a->array[i]);
         if (a->array[i] != 0) {
             return i + 1;
         }
@@ -299,7 +298,6 @@ static void bn_split_shift(bn_t *a, bn_t *b, bn_t *c, const int shift) {
 // c = a - b
 static int bn_sub(bn_t *a, bn_t *b, bn_t *c) {
     int carry = 0;
-    //bn_init(c);
     for (int i = 0; i < BN_ARRAY_SIZE; i++) {
         if (a->array[i] == 0 && carry == 1) {
             c->array[i] = MAX_VAL - b->array[i];
@@ -335,12 +333,11 @@ static void karatsuba_mul(bn_t *a, bn_t *b, bn_t *c) {
         bn_mul(a, b, c);
         return;
     }
-    //printf("size:%d,%d\n",m1,m2);
-    //return;
+
     //min
     int m = (m1 > m2) ? m2 : m1;
     int mm = m / 2;
-    bn_t high1, low1, high2, low2, z0, z1, z2, tmp1, tmp2, tmp3;
+    bn_t high1, low1, high2, low2, z0, z1, z2, tmp1, tmp2;
 
     bn_init(&high1);
     bn_init(&low1);
@@ -351,7 +348,6 @@ static void karatsuba_mul(bn_t *a, bn_t *b, bn_t *c) {
     bn_init(&z2);
     bn_init(&tmp1);
     bn_init(&tmp2);
-    bn_init(&tmp3);
 
     bn_split_shift(a, &high1, &low1, mm);
     bn_split_shift(b, &high2, &low2, mm);
