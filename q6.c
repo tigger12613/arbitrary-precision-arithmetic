@@ -68,7 +68,7 @@ static void bn_to_str(struct bn *n, char *str, int nbytes) {
 
 /* Decrement: subtract 1 from n */
 static int bn_dec(struct bn *n) {
-    if (bn_is_zero) {
+    if (bn_is_zero(n)) {
         return 0;
     }
     for (int i = 0; i < BN_ARRAY_SIZE; ++i) {
@@ -124,7 +124,6 @@ static void bn_mul(struct bn *a, struct bn *b, struct bn *c) {
         bn_add(c, &row, c);
     }
 }
-
 
 /* Copy src into dst. i.e. dst := src */
 static void bn_assign(struct bn *dst, struct bn *src) {
@@ -277,6 +276,118 @@ static char *bn_get_str(bn_t *n, char *out) {
 
     return out;
 }
+static int bn_size(bn_t *a) {
+    for (int i = (int)(BN_ARRAY_SIZE - 1); i >= 0; i--) {
+        //printf("%d\n",a->array[i]);
+        if (a->array[i] != 0) {
+            return i + 1;
+        }
+    }
+    return 0;
+}
+// a = b concat c
+static void bn_split_shift(bn_t *a, bn_t *b, bn_t *c, const int shift) {
+    bn_init(b);
+    bn_init(c);
+    for (int i = 0; i < shift; i++) {
+        c->array[i] = a->array[i];
+    }
+    for (int i = 0; i < BN_ARRAY_SIZE - shift; i++) {
+        b->array[i] = a->array[i + shift];
+    }
+}
+// c = a - b
+static int bn_sub(bn_t *a, bn_t *b, bn_t *c) {
+    int carry = 0;
+    //bn_init(c);
+    for (int i = 0; i < BN_ARRAY_SIZE; i++) {
+        if (a->array[i] == 0 && carry == 1) {
+            c->array[i] = MAX_VAL - b->array[i];
+            carry = 1;
+        } else {
+            if (a->array[i] - carry < b->array[i]) {
+                c->array[i] = MAX_VAL - b->array[i] + a->array[i] - carry;
+                carry = 1;
+            } else {
+                c->array[i] = a->array[i] - carry - b->array[i];
+                carry = 0;
+            }
+        }
+    }
+    if (carry == 1) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+void bn_left_shift(bn_t *a, int offset) {
+    for (int i = (int)(BN_ARRAY_SIZE - 1); i >= offset; i--) {
+        a->array[i] = a->array[i - offset];
+    }
+    for (int i = 0; i < offset; i++) {
+        a->array[i] = 0;
+    }
+}
+static void karatsuba_mul(bn_t *a, bn_t *b, bn_t *c) {
+    int m1 = bn_size(a);
+    int m2 = bn_size(b);
+    if (m1 == 1 || m2 == 1) {
+        bn_mul(a, b, c);
+        return;
+    }
+    //printf("size:%d,%d\n",m1,m2);
+    //return;
+    //min
+    int m = (m1 > m2) ? m2 : m1;
+    int mm = m / 2;
+    bn_t high1, low1, high2, low2, z0, z1, z2, tmp1, tmp2, tmp3;
+
+    bn_init(&high1);
+    bn_init(&low1);
+    bn_init(&high2);
+    bn_init(&low2);
+    bn_init(&z0);
+    bn_init(&z1);
+    bn_init(&z2);
+    bn_init(&tmp1);
+    bn_init(&tmp2);
+    bn_init(&tmp3);
+
+    bn_split_shift(a, &high1, &low1, mm);
+    bn_split_shift(b, &high2, &low2, mm);
+    karatsuba_mul(&low1, &low2, &z0);
+    bn_add(&low1, &high1, &tmp1);
+    bn_add(&low2, &high2, &tmp2);
+    karatsuba_mul(&tmp1, &tmp2, &z1);
+    karatsuba_mul(&high1, &high2, &z2);
+
+    bn_sub(&z1, &z2, &tmp1);
+    bn_sub(&tmp1, &z0, &tmp1);
+    bn_left_shift(&tmp1, 2 * mm);
+    bn_left_shift(&z2, 2 * mm);
+    bn_add(&tmp1, &z2, &tmp1);
+    bn_add(&tmp1, &z0, c);
+
+    return;
+}
+
+static void factorial2(struct bn *n, struct bn *res) {
+    struct bn tmp;
+    bn_assign(&tmp, n);
+    bn_dec(n);
+
+    while (!bn_is_zero(n)) {
+        karatsuba_mul(&tmp, n, res); /* res = tmp * n */
+
+        // char *str = calloc(1, 512);
+        // char *a = bn_get_str(res, str);
+        // printf("%s\n", a);
+
+        bn_dec(n);            /* n -= 1 */
+        bn_assign(&tmp, res); /* tmp = res */
+    }
+    bn_assign(res, &tmp);
+}
 
 int main(int argc, char *argv[]) {
     struct bn num, result;
@@ -287,7 +398,7 @@ int main(int argc, char *argv[]) {
         return -2;
     for (int i = 1; i <= n; i++) {
         bn_from_int(&num, i);
-        factorial(&num, &result);
+        factorial2(&num, &result);
         bn_to_str(&result, buf, sizeof(buf));
         // printf("factorial(%d) = %s\n", i, buf);
         uint32_t string_size = 512;
