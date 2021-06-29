@@ -1,7 +1,7 @@
 reset                                                                           
 set xlabel 'bits'
 set ylabel 'time'
-set title 'perfomance comparison'
+set title 'performance comparison'
 set term png enhanced font 'Verdana,10'
 set output 'runtime.png'
 set key left top

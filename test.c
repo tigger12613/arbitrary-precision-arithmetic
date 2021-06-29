@@ -29,8 +29,8 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
 
     FILE *fp1, *fp2;
-    fp1 = fopen("origin.txt", "a");
-    fp2 = fopen("karatsuba.txt","a");
+    fp1 = fopen("origin.txt", "w");
+    fp2 = fopen("karatsuba.txt","w");
 
     for (int k = 0; k < 50; k++) {
         uint32_t rand_n = rand();

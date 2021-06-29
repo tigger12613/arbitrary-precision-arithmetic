@@ -6,3 +6,8 @@ q6
 .devcontainer
 core*
 test
+accuracy
+output
+output2
+karatsuba.txt
+origin.txt

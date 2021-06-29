@@ -11,3 +11,6 @@ test: test.c q6.c
 
 plot:
 	gnuplot plot.gp
+
+accuracy: accuracy.c q6.c
+	gcc -o accuracy accuracy.c

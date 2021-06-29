@@ -345,9 +345,39 @@ void bn_left_shift(bn_t *a, int offset) {
 static void karatsuba_mul(bn_t *a, bn_t *b, bn_t *c) {
     int m1 = bn_size(a);
     int m2 = bn_size(b);
+    bn_init(c);
     // printf("m1=%d,m2=%d\n",m1,m2);
-    if (m1 <= 1 || m2 <= 1) {
-        bn_mul(a, b, c);
+    if (m1 <= 1 && m2 <= 1) {
+        UTYPE_TMP intermediate = a->array[0] * (UTYPE_TMP)b->array[0];
+        bn_from_int(c, intermediate);
+        return;
+    }else if(m1 <= 1){
+        bn_t row ,tmp;
+        bn_init(&row);
+        for (int j = 0; j < BN_ARRAY_SIZE; ++j) {
+            bn_init(&tmp);
+            UTYPE_TMP intermediate = a->array[0] * (UTYPE_TMP)b->array[j];
+            bn_from_int(&tmp, intermediate);
+            lshift_unit(&tmp, j);
+            bn_add(&tmp, &row, &row);
+        }
+        bn_add(c, &row, c);
+        //bn_mul(a,b,c);
+        return;
+    }else if( m2 <=1){
+        bn_t row ,tmp;
+        bn_init(&row);
+        for (int j = 0; j < BN_ARRAY_SIZE; ++j) {
+            if ( j < BN_ARRAY_SIZE) {
+                bn_init(&tmp);
+                UTYPE_TMP intermediate = a->array[j] * (UTYPE_TMP)b->array[0];
+                bn_from_int(&tmp, intermediate);
+                lshift_unit(&tmp, j);
+                bn_add(&tmp, &row, &row);
+            }
+        }
+        bn_add(c, &row, c);
+        //bn_mul(a,b,c);
         return;
     }
 
