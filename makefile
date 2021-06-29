@@ -6,5 +6,8 @@ check: q6
 	./q6 100 > q6ans
 	bash diff.sh
 
+test: test.c q6.c
+	gcc -o test test.c
 
-
+plot:
+	gnuplot plot.gp
