@@ -2,8 +2,11 @@
 q6:q6.c
 	gcc -o q6 q6.c
 
-check: q6
-	./q6 100 > q6ans
+ck:check.c
+	gcc -o ck check.c
+
+check: ck
+	./ck 100 > q6ans
 	bash diff.sh
 
 test: test.c q6.c

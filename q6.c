@@ -14,7 +14,7 @@
 #define FORMAT_STRING "%.08x"
 #define MAX_VAL ((UTYPE_TMP)0xFFFFFFFF)
 
-#define BN_ARRAY_SIZE (128 / UNIT_SIZE) /* size of big-numbers in bytes */
+#define BN_ARRAY_SIZE (4096 / UNIT_SIZE) /* size of big-numbers in bytes */
 
 /* bn consists of array of TYPE */
 struct bn {
@@ -41,6 +41,15 @@ static bool bn_is_zero(struct bn *n) {
         if (n->array[i])
             return false;
     return true;
+}
+
+static inline int bn_size(bn_t *a) {
+    for (int i = (int)(BN_ARRAY_SIZE - 1); i >= 0; i--) {
+        if (a->array[i] != 0) {
+            return i + 1;
+        }
+    }
+    return 0;
 }
 
 static void bn_to_str(struct bn *n, char *str, int nbytes) {
@@ -81,7 +90,7 @@ static int bn_dec(struct bn *n) {
     }
     return 1;
 }
-
+// c = a + b
 static int bn_add(struct bn *a, struct bn *b, struct bn *c) {
     int carry = 0;
     for (int i = 0; i < BN_ARRAY_SIZE; ++i) {
@@ -109,11 +118,12 @@ static inline void lshift_unit(struct bn *a, int n_units) {
 static void bn_mul(struct bn *a, struct bn *b, struct bn *c) {
     struct bn row, tmp;
     bn_init(c);
-
-    for (int i = 0; i < BN_ARRAY_SIZE; ++i) {
+    int a_size = bn_size(a);
+    int b_size = bn_size(b);
+    for (int i = 0; i < a_size; ++i) {
         bn_init(&row);
 
-        for (int j = 0; j < BN_ARRAY_SIZE; ++j) {
+        for (int j = 0; j < b_size; ++j) {
             if (i + j < BN_ARRAY_SIZE) {
                 bn_init(&tmp);
                 UTYPE_TMP intermediate = a->array[i] * (UTYPE_TMP)b->array[j];
@@ -277,30 +287,23 @@ static char *bn_get_str(bn_t *n, char *out) {
 
     return out;
 }
-static int bn_size(bn_t *a) {
-    for (int i = (int)(BN_ARRAY_SIZE - 1); i >= 0; i--) {
-        if (a->array[i] != 0) {
-            return i + 1;
-        }
-    }
-    return 0;
-}
 
-void bn_print(bn_t *a){
+
+static inline void bn_print(bn_t *a){
     uint32_t string_size = 512;
     char *str = calloc(1, string_size);
     char *str1 = bn_get_str(a, str);
     printf("%s\n", str1);
     free(str1);
 }
-void bn_printhex(bn_t *a){
+static inline void bn_printhex(bn_t *a){
     char buf[8192];
     bn_to_str(a, buf, sizeof(buf));
     printf("%s\n", buf);
 }
 
 // a = b concat c
-static void bn_split_shift(bn_t *a, bn_t *b, bn_t *c, const int offset) {
+static inline void bn_split_shift(bn_t *a, bn_t *b, bn_t *c, const int offset) {
     bn_init(b);
     bn_init(c);
     for (int i = 0; i < offset; i++) {
@@ -311,7 +314,7 @@ static void bn_split_shift(bn_t *a, bn_t *b, bn_t *c, const int offset) {
     }
 }
 // c = a - b
-static int bn_sub(bn_t *a, bn_t *b, bn_t *c) {
+static inline int bn_sub(bn_t *a, bn_t *b, bn_t *c) {
     //printf("sub\n");
     UTYPE_TMP carry = 0;
     for (int i = 0; i < BN_ARRAY_SIZE; i++) {
@@ -334,7 +337,7 @@ static int bn_sub(bn_t *a, bn_t *b, bn_t *c) {
         return 1;
     }
 }
-void bn_left_shift(bn_t *a, int offset) {
+static inline void bn_left_shift(bn_t *a, int offset) {
     for (int i = (int)(BN_ARRAY_SIZE - 1); i >= offset; i--) {
         a->array[i] = a->array[i - offset];
     }
@@ -351,10 +354,10 @@ static void karatsuba_mul(bn_t *a, bn_t *b, bn_t *c) {
         UTYPE_TMP intermediate = a->array[0] * (UTYPE_TMP)b->array[0];
         bn_from_int(c, intermediate);
         return;
-    }else if(m1 <= 1){
+    }else if(m1 == 1){
         bn_t row ,tmp;
         bn_init(&row);
-        for (int j = 0; j < BN_ARRAY_SIZE; ++j) {
+        for (int j = 0; j < m2; ++j) {
             bn_init(&tmp);
             UTYPE_TMP intermediate = a->array[0] * (UTYPE_TMP)b->array[j];
             bn_from_int(&tmp, intermediate);
@@ -364,20 +367,20 @@ static void karatsuba_mul(bn_t *a, bn_t *b, bn_t *c) {
         bn_add(c, &row, c);
         //bn_mul(a,b,c);
         return;
-    }else if( m2 <=1){
+    }else if( m2 == 1){
         bn_t row ,tmp;
         bn_init(&row);
-        for (int j = 0; j < BN_ARRAY_SIZE; ++j) {
-            if ( j < BN_ARRAY_SIZE) {
-                bn_init(&tmp);
-                UTYPE_TMP intermediate = a->array[j] * (UTYPE_TMP)b->array[0];
-                bn_from_int(&tmp, intermediate);
-                lshift_unit(&tmp, j);
-                bn_add(&tmp, &row, &row);
-            }
+        for (int j = 0; j < m1; ++j) {
+            bn_init(&tmp);
+            UTYPE_TMP intermediate = a->array[j] * (UTYPE_TMP)b->array[0];
+            bn_from_int(&tmp, intermediate);
+            lshift_unit(&tmp, j);
+            bn_add(&tmp, &row, &row);
         }
         bn_add(c, &row, c);
         //bn_mul(a,b,c);
+        return;
+    }else if(m1 == 0 || m2 == 0){
         return;
     }
 
