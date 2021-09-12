@@ -17,3 +17,8 @@ plot:
 
 accuracy: accuracy.c q6.c
 	gcc -o accuracy accuracy.c
+
+clean:
+	rm ck
+	rm q6
+	rm test
